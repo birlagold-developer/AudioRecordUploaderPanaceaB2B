@@ -1,4 +1,4 @@
-package com.kss.AudioRecordUploader;
+package com.kss.AudioRecordUploader.utils;
 
 import android.content.Context;
 import android.content.SharedPreferences;

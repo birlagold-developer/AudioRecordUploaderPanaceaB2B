@@ -1,4 +1,4 @@
-package com.kss.AudioRecordUploader;
+package com.kss.AudioRecordUploader.receiver;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,7 +10,6 @@ import android.util.Log;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.Comparator;
 
 public class CallReceiver extends BroadcastReceiver {
     private static final String TAG = "CallReceiver";
@@ -41,11 +40,7 @@ public class CallReceiver extends BroadcastReceiver {
 
     private void uploadFile() {
         File[] datefolder = new File(Environment.getExternalStorageDirectory().getPath() + "/CallRecordings/").listFiles();
-        Arrays.sort(datefolder, new Comparator<File>() {
-            public int compare(File f1, File f2) {
-                return Long.valueOf(f2.lastModified()).compareTo(f1.lastModified());
-            }
-        });
+        Arrays.sort(datefolder, (f1, f2) -> Long.valueOf(f2.lastModified()).compareTo(f1.lastModified()));
 
         for (File dirFile : datefolder) {
             if (dirFile.isDirectory()) {
@@ -55,7 +50,6 @@ public class CallReceiver extends BroadcastReceiver {
 
                         String clientMobileNo = getClientNumber(audioFile.getName());
                         Log.i(TAG, "uploadFile: audioFile: Client Mobile No:" + clientMobileNo);
-
 
                     }
                 }

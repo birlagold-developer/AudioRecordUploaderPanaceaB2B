@@ -23,7 +23,7 @@
         <activity android:name=".UploaderActivity" />
 
         <receiver
-            android:name=".CallReceiver"
+            android:name=".receiver.CallReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>

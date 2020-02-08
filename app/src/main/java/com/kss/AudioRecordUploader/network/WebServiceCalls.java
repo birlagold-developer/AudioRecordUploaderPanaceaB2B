@@ -6,10 +6,10 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import com.kss.AudioRecordUploader.Constant;
-import com.kss.AudioRecordUploader.Utility;
 import com.kss.AudioRecordUploader.network.retrofit.RFInterface;
 import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmResultResponse;
+import com.kss.AudioRecordUploader.utils.Constant;
+import com.kss.AudioRecordUploader.utils.Utility;
 
 import java.util.Objects;
 

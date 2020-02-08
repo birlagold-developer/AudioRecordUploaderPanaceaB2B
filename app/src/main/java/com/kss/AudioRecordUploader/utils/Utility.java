@@ -1,9 +1,10 @@
-package com.kss.AudioRecordUploader;
+package com.kss.AudioRecordUploader.utils;
 
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.graphics.drawable.ColorDrawable;
 
+import com.kss.AudioRecordUploader.R;
 import com.kss.AudioRecordUploader.network.retrofit.RFClient;
 import com.kss.AudioRecordUploader.network.retrofit.RFInterface;
 
