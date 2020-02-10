@@ -1,14 +1,18 @@
 package com.kss.AudioRecordUploader;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.text.InputType;
+import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.kss.AudioRecordUploader.databinding.ActivityUploaderBinding;
 import com.kss.AudioRecordUploader.receiver.CallReceiver;
 import com.kss.AudioRecordUploader.utils.Constant;
 import com.kss.AudioRecordUploader.utils.SharedPrefrenceObj;
@@ -16,26 +20,23 @@ import com.kss.AudioRecordUploader.utils.SharedPrefrenceObj;
 public class UploaderActivity extends AppCompatActivity implements View.OnClickListener {
     private static final String TAG = "UploaderActivity";
 
-    private EditText editTextAgentMobileNumber;
-    private EditText editTextAgentEmailAddress;
-    private Button btnUploader;
+    private ActivityUploaderBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_uploader);
+        binding = ActivityUploaderBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
-        editTextAgentMobileNumber = findViewById(R.id.tVAgentNumber);
-        editTextAgentEmailAddress = findViewById(R.id.tVAgentEmail);
-        btnUploader = findViewById(R.id.btnUploader);
+        binding.tVAgentNumber.setInputType(InputType.TYPE_NULL);
+        binding.tVAgentEmail.setInputType(InputType.TYPE_NULL);
 
-        editTextAgentMobileNumber.setInputType(InputType.TYPE_NULL);
-        editTextAgentEmailAddress.setInputType(InputType.TYPE_NULL);
+        binding.tVAgentNumber.setText(SharedPrefrenceObj.getSharedValue(UploaderActivity.this, Constant.AGENT_NUMBBR));
+        binding.tVAgentEmail.setText(SharedPrefrenceObj.getSharedValue(UploaderActivity.this, Constant.AGENT_EMAIL));
 
-        editTextAgentMobileNumber.setText(SharedPrefrenceObj.getSharedValue(UploaderActivity.this, Constant.AGENT_NUMBBR));
-        editTextAgentEmailAddress.setText(SharedPrefrenceObj.getSharedValue(UploaderActivity.this, Constant.AGENT_EMAIL));
+        binding.btnUploader.setOnClickListener(this);
 
-        btnUploader.setOnClickListener(this);
+        registerReceiver(broadcastReceiver, new IntentFilter("MANUAL_FILE_UPLOAD_COMPLETE"));
 
     }
 
@@ -45,10 +46,26 @@ public class UploaderActivity extends AppCompatActivity implements View.OnClickL
             case R.id.btnUploader:
                 sendBroadcast(
                         new Intent(UploaderActivity.this, CallReceiver.class)
-                                .setAction("MANUAL_UPLOAD")
+                                .setAction("MANUAL_FILE_UPLOAD")
                 );
+                binding.ProgressBar.setVisibility(View.VISIBLE);
                 break;
         }
     }
 
+    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            binding.ProgressBar.setVisibility(View.GONE);
+            Toast toast = Toast.makeText(UploaderActivity.this, R.string.upload_complete_message, Toast.LENGTH_LONG);
+            toast.setGravity(Gravity.CENTER, 0, 0);
+            toast.show();
+        }
+    };
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(broadcastReceiver);
+    }
 }

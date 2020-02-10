@@ -13,6 +13,9 @@ import com.kss.AudioRecordUploader.utils.Utility;
 
 import java.util.Objects;
 
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -23,28 +26,39 @@ public class WebServiceCalls {
 
     private static RFInterface rfInterface = Utility.getRetrofitInterface(Constant.URL);
 
+    private WebServiceCalls() {
+    }
+
     public static class File {
 
-        public static void upload(Context context,
+        private File() {
+        }
+
+        public static void upload(Context context, java.io.File audioFile,
                                   final NetworkOperations nwCall) {
 
-            nwCall.onStart(context, "");
+            //nwCall.onStart(context, "");
 
-            rfInterface.uploadFile().enqueue(new Callback<RmResultResponse>() {
+            RequestBody audioFileRequestBody = RequestBody.create(MediaType.parse("audio"), audioFile);
+            MultipartBody.Part audioMultipartBodyPart = MultipartBody.Part.createFormData("audio", audioFile.getName(), audioFileRequestBody);
+
+            rfInterface.uploadFile(audioMultipartBodyPart).enqueue(new Callback<RmResultResponse>() {
 
                 @Override
                 public void onResponse(@NonNull Call<RmResultResponse> call, @NonNull Response<RmResultResponse> response) {
-                    nwCall.onComplete();
+
+                    //nwCall.onComplete();
+
                     Bundle bundle = new Bundle();
-                    bundle.putBoolean("valid", response.body().getValid());
-                    bundle.putString(Constant.MESSAGE, response.body().getComment());
                     nwCall.onSuccess(bundle);
                 }
 
                 @Override
                 public void onFailure(@NonNull Call<RmResultResponse> call, @NonNull Throwable t) {
                     Log.e(TAG, Objects.requireNonNull(t.getMessage()));
-                    nwCall.onComplete();
+
+                    //nwCall.onComplete();
+
                     Bundle bundle = new Bundle();
                     bundle.putString(Constant.MESSAGE, t.getMessage());
                     nwCall.onFailure(bundle);

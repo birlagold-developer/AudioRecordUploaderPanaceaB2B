@@ -15,6 +15,10 @@ public class Utility {
         return RFClient.getClient(BASE_URL).create(RFInterface.class);
     }
 
+    public static RFInterface getRetrofitInterfaceWithStringResponse(String BASE_URL) {
+        return RFClient.getClientWithStringResponse(BASE_URL).create(RFInterface.class);
+    }
+
     public static ProgressDialog createProgressDialog(Context context) {
         ProgressDialog dialog = new ProgressDialog(context);
         dialog.show();

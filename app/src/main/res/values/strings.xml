@@ -4,4 +4,7 @@
     <string name="agent_email">Agent Email</string>
     <string name="submit">Submit</string>
     <string name="upload">upload</string>
+    <string name="mobile_email_error_message">Please enter agent mobile no and email</string>
+    <string name="email_error_message">Please enter valid email</string>
+    <string name="upload_complete_message">ALL FILE ARE UPLOADED</string>
 </resources>

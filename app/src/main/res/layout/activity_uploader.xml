@@ -43,6 +43,14 @@
             android:layout_height="wrap_content"
             android:text="@string/upload" />
 
+        <ProgressBar
+            android:id="@+id/ProgressBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/form_padding"
+            android:visibility="gone" />
+
+
     </LinearLayout>
 
 </LinearLayout>

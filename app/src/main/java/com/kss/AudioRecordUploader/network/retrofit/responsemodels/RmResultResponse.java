@@ -7,27 +7,27 @@ import java.io.Serializable;
 
 public class RmResultResponse implements Serializable {
 
-    @SerializedName("valid")
+    @SerializedName("success")
     @Expose
-    private Boolean valid;
+    private Boolean success;
 
-    @SerializedName("comment")
+    @SerializedName("error")
     @Expose
-    private String comment;
+    private String error;
 
-    public Boolean getValid() {
-        return valid;
+    public Boolean getSuccess() {
+        return success;
     }
 
-    public void setValid(Boolean valid) {
-        this.valid = valid;
+    public void setSuccess(Boolean success) {
+        this.success = success;
     }
 
-    public String getComment() {
-        return comment;
+    public String getError() {
+        return error;
     }
 
-    public void setComment(String comment) {
-        this.comment = comment;
+    public void setError(String error) {
+        this.error = error;
     }
 }

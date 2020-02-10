@@ -1,40 +1,41 @@
 package com.kss.AudioRecordUploader;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Patterns;
 import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.kss.AudioRecordUploader.databinding.ActivityMainBinding;
 import com.kss.AudioRecordUploader.utils.Constant;
 import com.kss.AudioRecordUploader.utils.SharedPrefrenceObj;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+    private static final String TAG = "MainActivity";
 
-    private EditText editTextAgentMobileNumber;
-    private EditText editTextAgentEmailAddress;
-    private Button buttonSubmit;
-
+    private ActivityMainBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getWindow().getDecorView().setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
 
         if (!TextUtils.isEmpty(SharedPrefrenceObj.getSharedValue(MainActivity.this, Constant.AGENT_NUMBBR))) {
             callNextActivity();
             return;
         }
 
-        editTextAgentMobileNumber = findViewById(R.id.tVAgentNumber);
-        editTextAgentEmailAddress = findViewById(R.id.tVAgentEmail);
-        buttonSubmit = findViewById(R.id.btnSubmit);
-
-        buttonSubmit.setOnClickListener(this);
+        binding.btnSubmit.setOnClickListener(this);
 
     }
 
@@ -42,17 +43,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btnSubmit:
-                String number = editTextAgentMobileNumber.getText().toString().replace("'", "");
-                String email = editTextAgentEmailAddress.getText().toString().replace("'", "");
+                String number = binding.tVAgentNumber.getText().toString().replace("'", "");
+                String email = binding.tVAgentEmail.getText().toString().replace("'", "");
 
                 if (TextUtils.isEmpty(number) || TextUtils.isEmpty(email)) {
-                    Toast.makeText(MainActivity.this, "Please enter correct agent mobile no and email", Toast.LENGTH_LONG).show();
+                    Toast.makeText(MainActivity.this, R.string.mobile_email_error_message, Toast.LENGTH_LONG).show();
+                } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    Toast.makeText(MainActivity.this, R.string.email_error_message, Toast.LENGTH_LONG).show();
                 } else {
                     SharedPrefrenceObj.setSharedValue(MainActivity.this, Constant.AGENT_NUMBBR, number);
                     SharedPrefrenceObj.setSharedValue(MainActivity.this, Constant.AGENT_EMAIL, email);
                     callNextActivity();
                 }
-
                 break;
         }
     }

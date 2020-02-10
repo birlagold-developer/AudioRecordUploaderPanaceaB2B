@@ -2,7 +2,7 @@ package com.kss.AudioRecordUploader.utils;
 
 public class Constant {
 
-    public static String URL = "";
+    public static String URL = "http://chhotumaharajb2b.com/api/";
 
     public static String MESSAGE = "message";
 
