@@ -67,10 +67,8 @@ public class CallReceiver extends BroadcastReceiver {
     }
 
     private void uploadFile() {
-        File[] datefolder = new File(Environment.getExternalStorageDirectory().getPath() + "/Call/").listFiles();
 
-        System.out.print("A:" + Arrays.asList(datefolder.toString()));
-
+        File[] datefolder = new File(Environment.getExternalStorageDirectory() + "/Call/").listFiles();
 
         if (datefolder != null) {
             Arrays.sort(datefolder, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
@@ -168,7 +166,7 @@ public class CallReceiver extends BroadcastReceiver {
             @Override
             public void onSuccess(Bundle msg) {
                 //TODO
-                 audioFile.delete();
+                audioFile.delete();
                 if (isLast) {
                     context.sendBroadcast(
                             new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
