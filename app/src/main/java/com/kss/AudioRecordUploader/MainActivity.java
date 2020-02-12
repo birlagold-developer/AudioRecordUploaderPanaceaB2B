@@ -1,5 +1,6 @@
 package com.kss.AudioRecordUploader;
 
+import android.Manifest;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
@@ -37,6 +38,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         binding.btnSubmit.setOnClickListener(this);
 
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestPermissions(new String[]{Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1000);
+        }
+
     }
 
     @Override
@@ -51,7 +57,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                     Toast.makeText(MainActivity.this, R.string.email_error_message, Toast.LENGTH_LONG).show();
                 } else {
-                    SharedPrefrenceObj.setSharedValue(MainActivity.this, Constant.AGENT_NUMBBR, number);
+                    SharedPrefrenceObj.setSharedValue(MainActivity.this, Constant.AGENT_NUMBBR, "+91" + number);
                     SharedPrefrenceObj.setSharedValue(MainActivity.this, Constant.AGENT_EMAIL, email);
                     callNextActivity();
                 }

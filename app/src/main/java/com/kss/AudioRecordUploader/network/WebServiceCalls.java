@@ -21,7 +21,6 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class WebServiceCalls {
-
     private static final String TAG = "WebServiceCalls";
 
     private static RFInterface rfInterface = Utility.getRetrofitInterface(Constant.URL);
@@ -30,19 +29,26 @@ public class WebServiceCalls {
     }
 
     public static class File {
+        private static final String TAG = "File";
 
         private File() {
         }
 
-        public static void upload(Context context, java.io.File audioFile,
-                                  final NetworkOperations nwCall) {
+        public static synchronized void upload(Context context, String agentMobileNumber, String agentEmailID, String clientMobileNumber, String totalDuration, java.io.File audioFile,
+                                               final NetworkOperations nwCall) {
 
             //nwCall.onStart(context, "");
-
+            RequestBody agentMobileNumberRequestBody = RequestBody.create(MediaType.parse("text"), agentMobileNumber);
+            RequestBody agentEmailIDRequestBody = RequestBody.create(MediaType.parse("text"), agentEmailID);
+            RequestBody clientMobileNumberRequestBody = RequestBody.create(MediaType.parse("text"), clientMobileNumber);
+            RequestBody totalDurationRequestBody = RequestBody.create(MediaType.parse("text"), totalDuration);
             RequestBody audioFileRequestBody = RequestBody.create(MediaType.parse("audio"), audioFile);
+
             MultipartBody.Part audioMultipartBodyPart = MultipartBody.Part.createFormData("audio", audioFile.getName(), audioFileRequestBody);
 
-            rfInterface.uploadFile(audioMultipartBodyPart).enqueue(new Callback<RmResultResponse>() {
+            rfInterface.uploadFile(agentMobileNumberRequestBody, agentEmailIDRequestBody, clientMobileNumberRequestBody,
+                    totalDurationRequestBody, audioMultipartBodyPart
+            ).enqueue(new Callback<RmResultResponse>() {
 
                 @Override
                 public void onResponse(@NonNull Call<RmResultResponse> call, @NonNull Response<RmResultResponse> response) {

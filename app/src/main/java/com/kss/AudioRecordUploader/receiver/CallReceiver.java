@@ -10,10 +10,13 @@ import android.os.Environment;
 import android.telephony.TelephonyManager;
 import android.util.Base64;
 import android.util.Log;
+import android.view.Gravity;
+import android.widget.Toast;
 
 import com.kss.AudioRecordUploader.network.NetworkOperations;
 import com.kss.AudioRecordUploader.network.WebServiceCalls;
 import com.kss.AudioRecordUploader.utils.Constant;
+import com.kss.AudioRecordUploader.utils.Networkstate;
 import com.kss.AudioRecordUploader.utils.SharedPrefrenceObj;
 
 import java.io.BufferedInputStream;
@@ -32,55 +35,122 @@ public class CallReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         this.context = context;
 
-        if (Objects.requireNonNull(intent.getAction()).equalsIgnoreCase("android.intent.action.PHONE_STATE")) {
-            Bundle extras = intent.getExtras();
-            if (extras != null) {
+        if (Networkstate.haveNetworkConnection(context)) {
+            if (Objects.requireNonNull(intent.getAction()).equalsIgnoreCase("android.intent.action.PHONE_STATE")) {
+                Bundle extras = intent.getExtras();
+                if (extras != null) {
 
-                String state = extras.getString(TelephonyManager.EXTRA_STATE);
+                    String state = extras.getString(TelephonyManager.EXTRA_STATE);
 //            Log.d(TAG, "onReceive: TelephonyManager.EXTRA_STATE: " + state);
 //            Log.d(TAG, "onReceive: TelephonyManager.CALL_STATE_IDLE: " + TelephonyManager.CALL_STATE_IDLE);
 //            Log.d(TAG, "onReceive: TelephonyManager.CALL_STATE_RINGING: " + TelephonyManager.CALL_STATE_RINGING);
 //            Log.d(TAG, "onReceive: TelephonyManager.CALL_STATE_OFFHOOK: " + TelephonyManager.CALL_STATE_OFFHOOK);
 //            System.out.print("<=======================>");
 
-                if (state != null && state.equalsIgnoreCase(TelephonyManager.EXTRA_STATE_IDLE)) {
-                    uploadFile();
+                    if (state != null && state.equalsIgnoreCase(TelephonyManager.EXTRA_STATE_IDLE)) {
+                        uploadFile();
+                    }
                 }
+            } else {
+                uploadFile();
             }
         } else {
-            uploadFile();
+            Toast toast = Toast.makeText(context, "NO INTERNET CONNECTION", Toast.LENGTH_LONG);
+            toast.setGravity(Gravity.CENTER, 0, 0);
+            toast.show();
+
+            context.sendBroadcast(
+                    new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
+            );
         }
 
     }
 
     private void uploadFile() {
-        File[] datefolder = new File(Environment.getExternalStorageDirectory().getPath() + "/CallRecordings/").listFiles();
+        File[] datefolder = new File(Environment.getExternalStorageDirectory().getPath() + "/Call/").listFiles();
+
+        System.out.print("A:" + Arrays.asList(datefolder.toString()));
+
 
         if (datefolder != null) {
             Arrays.sort(datefolder, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
-            for (File dirFile : datefolder) {
-                if (dirFile.isDirectory()) {
-                    File[] files = Objects.requireNonNull(dirFile.listFiles());
-                    for (int i = 0; i < files.length; i++) {
-                        File audioFile = files[i];
-                        if (audioFile.getName().contains("+")) {
-                            uploadFile(
-                                    SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR),
-                                    SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL),
-                                    audioFile,
-                                    i < files.length ? true : false
-                            );
-                        }
+            if (datefolder.length != 0) {
+                for (int i = 0; i < datefolder.length; i++) {
+                    File audioFile = datefolder[i];
+                    if (audioFile.getName().contains("Call")) {
+                        uploadFile(
+                                SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR),
+                                SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL),
+                                audioFile,
+                                i < datefolder.length ? true : false
+                        );
                     }
                 }
+            } else {
+                Toast toast = Toast.makeText(context, "NO FILE AVAILABLE", Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                toast.show();
+                context.sendBroadcast(
+                        new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
+                );
             }
         }
+
+
+//        File[] datefolder = new File(Environment.getExternalStorageDirectory().getPath() + "/CallRecordingData/").listFiles();
+//
+//        System.out.print("A:" + Arrays.asList(datefolder.toString()));
+//
+//
+//        if (datefolder != null) {
+//            Arrays.sort(datefolder, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
+//            if (datefolder.length == 1) {
+//                for (int i = 0; i < datefolder.length - 1; i++) {
+//                    File audioFile = datefolder[i];
+//                    if (audioFile.getName().contains(".mp3")) {
+//                        uploadFile(
+//                                SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR),
+//                                SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL),
+//                                audioFile,
+//                                i < datefolder.length ? true : false
+//                        );
+//                    }
+//                }
+//            } else {
+//                Toast toast = Toast.makeText(context, "NO FILE AVAILABLE", Toast.LENGTH_LONG);
+//                toast.setGravity(Gravity.CENTER, 0, 0);
+//                toast.show();
+//                context.sendBroadcast(
+//                        new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
+//                );
+//            }
+//        }
+
+//        if (datefolder != null) {
+//            Arrays.sort(datefolder, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
+//            for (File dirFile : datefolder) {
+//                if (dirFile.isDirectory()) {
+//                    File[] files = Objects.requireNonNull(dirFile.listFiles());
+//                    for (int i = 0; i < files.length; i++) {
+//                        File audioFile = files[i];
+//                        if (audioFile.getName().contains("+")) {
+//                            uploadFile(
+//                                    SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR),
+//                                    SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL),
+//                                    audioFile,
+//                                    i < files.length ? true : false
+//                            );
+//                        }
+//                    }
+//                }
+//            }
+//        }
     }
 
     private void uploadFile(String agentMobileNo, String agentEmail, final File audioFile, final boolean isLast) {
 
         String clientMobileNo = getClientNumber(audioFile.getName());
-        String audioStringFile = getStringFile(audioFile);
+        //String audioStringFile = getStringFile(audioFile);
         String audioFileExtension = audioFile.getName().substring(audioFile.getName().lastIndexOf('.') + 1);
         int durationInSeconds = getDurationInSecond(audioFile);
 
@@ -93,13 +163,12 @@ public class CallReceiver extends BroadcastReceiver {
         Log.d(TAG, "uploadFile: durationInSecond: " + durationInSeconds);
 
 
-        WebServiceCalls.File.upload(context, audioFile, new NetworkOperations() {
+        WebServiceCalls.File.upload(context, agentMobileNo, agentEmail, clientMobileNo, String.valueOf(durationInSeconds), audioFile, new NetworkOperations() {
 
             @Override
             public void onSuccess(Bundle msg) {
                 //TODO
-                //audioFile.delete();
-
+                 audioFile.delete();
                 if (isLast) {
                     context.sendBroadcast(
                             new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
@@ -116,8 +185,23 @@ public class CallReceiver extends BroadcastReceiver {
     }
 
     private String getClientNumber(String fileName) {
-        return fileName.substring(fileName.lastIndexOf("_") + 1, fileName.indexOf("."));
+        String number = fileName.substring(fileName.lastIndexOf(" ") + 1, fileName.indexOf("_"));
+        return number;
     }
+
+//    private String getClientNumber(String fileName) {
+//
+//        String number = fileName.substring(0, fileName.indexOf("_"));
+//
+//        if (number.startsWith("+91")) {
+//            return number;
+//        } else if (number.length() == 10) {
+//            return "+91" + number;
+//        } else {
+//            number = number.substring(1);
+//            return "+91" + number;
+//        }
+//    }
 
     public String getStringFile(File file) {
         String base64StringFile = null;
@@ -141,7 +225,7 @@ public class CallReceiver extends BroadcastReceiver {
         mmr.setDataSource(context, uri);
         String durationStr = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
         mmr.release();
-        int millSecond = Integer.parseInt(durationStr);
+        int millSecond = Integer.parseInt(durationStr == null ? "0" : durationStr);
         return millSecond / 1000;
     }
 

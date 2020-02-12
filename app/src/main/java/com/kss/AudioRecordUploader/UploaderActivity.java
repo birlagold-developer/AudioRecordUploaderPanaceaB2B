@@ -1,9 +1,11 @@
 package com.kss.AudioRecordUploader;
 
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -38,6 +40,9 @@ public class UploaderActivity extends AppCompatActivity implements View.OnClickL
 
         registerReceiver(broadcastReceiver, new IntentFilter("MANUAL_FILE_UPLOAD_COMPLETE"));
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestPermissions(new String[]{Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1000);
+        }
     }
 
     @Override

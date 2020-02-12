@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">AudioRecordUploader</string>
-    <string name="agent_name">Agent Name</string>
+    <string name="agent_mobile_no">Agent Mobile No</string>
     <string name="agent_email">Agent Email</string>
     <string name="submit">Submit</string>
     <string name="upload">upload</string>
