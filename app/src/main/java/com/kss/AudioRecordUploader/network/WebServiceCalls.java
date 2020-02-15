@@ -7,7 +7,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.kss.AudioRecordUploader.network.retrofit.RFInterface;
-import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmResultResponse;
+import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmUploadFileResponse;
 import com.kss.AudioRecordUploader.utils.Constant;
 import com.kss.AudioRecordUploader.utils.Utility;
 
@@ -34,7 +34,8 @@ public class WebServiceCalls {
         private File() {
         }
 
-        public static synchronized void upload(Context context, String agentMobileNumber, String agentEmailID, String clientMobileNumber, String totalDuration, java.io.File audioFile,
+        public static synchronized void upload(Context context, String agentMobileNumber, String agentEmailID, String clientMobileNumber, String totalDuration,
+                                               java.io.File audioFile, boolean isLast,
                                                final NetworkOperations nwCall) {
 
             //nwCall.onStart(context, "");
@@ -44,23 +45,37 @@ public class WebServiceCalls {
             RequestBody totalDurationRequestBody = RequestBody.create(MediaType.parse("text"), totalDuration);
             RequestBody audioFileRequestBody = RequestBody.create(MediaType.parse("audio"), audioFile);
 
+            RequestBody isLastRequestBody = null;
+            if (isLast) {
+                isLastRequestBody = RequestBody.create(MediaType.parse("text"), "1");
+            } else {
+                isLastRequestBody = RequestBody.create(MediaType.parse("text"), "0");
+            }
+
             MultipartBody.Part audioMultipartBodyPart = MultipartBody.Part.createFormData("audio", audioFile.getName(), audioFileRequestBody);
 
             rfInterface.uploadFile(agentMobileNumberRequestBody, agentEmailIDRequestBody, clientMobileNumberRequestBody,
-                    totalDurationRequestBody, audioMultipartBodyPart
-            ).enqueue(new Callback<RmResultResponse>() {
+                    totalDurationRequestBody, audioMultipartBodyPart, isLastRequestBody
+            ).enqueue(new Callback<RmUploadFileResponse>() {
 
                 @Override
-                public void onResponse(@NonNull Call<RmResultResponse> call, @NonNull Response<RmResultResponse> response) {
+                public void onResponse(@NonNull Call<RmUploadFileResponse> call, @NonNull Response<RmUploadFileResponse> response) {
 
                     //nwCall.onComplete();
 
-                    Bundle bundle = new Bundle();
-                    nwCall.onSuccess(bundle);
+                    if (response.body().getSuccess()) {
+                        Bundle bundle = new Bundle();
+                        bundle.putSerializable("data", response.body().getData());
+                        nwCall.onSuccess(bundle);
+                    } else {
+                        Bundle bundle = new Bundle();
+                        bundle.putString(Constant.MESSAGE, response.body().getError());
+                        nwCall.onFailure(bundle);
+                    }
                 }
 
                 @Override
-                public void onFailure(@NonNull Call<RmResultResponse> call, @NonNull Throwable t) {
+                public void onFailure(@NonNull Call<RmUploadFileResponse> call, @NonNull Throwable t) {
                     Log.e(TAG, Objects.requireNonNull(t.getMessage()));
 
                     //nwCall.onComplete();

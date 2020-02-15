@@ -1,6 +1,6 @@
 package com.kss.AudioRecordUploader.network.retrofit;
 
-import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmResultResponse;
+import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmUploadFileResponse;
 
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
@@ -13,12 +13,13 @@ public interface RFInterface {
 
     @Multipart
     @POST("Save_CallRecordAgent")
-    Call<RmResultResponse> uploadFile(
+    Call<RmUploadFileResponse> uploadFile(
             @Part("agent_number") RequestBody agentMobileNumber,
             @Part("email") RequestBody agentEmailID,
             @Part("customer_number") RequestBody clientMobileNumber,
             @Part("call_duration") RequestBody totalDuration,
-            @Part MultipartBody.Part audioFile
+            @Part MultipartBody.Part audioFile,
+            @Part("isLast") RequestBody isLast
     );
 
 }

@@ -5,19 +5,23 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.telephony.TelephonyManager;
 import android.util.Base64;
 import android.util.Log;
 import android.view.Gravity;
 import android.widget.Toast;
 
+import com.kss.AudioRecordUploader.model.Data;
 import com.kss.AudioRecordUploader.network.NetworkOperations;
 import com.kss.AudioRecordUploader.network.WebServiceCalls;
+import com.kss.AudioRecordUploader.network.retrofit.RFInterface;
+import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmUploadFileResponse;
 import com.kss.AudioRecordUploader.utils.Constant;
 import com.kss.AudioRecordUploader.utils.Networkstate;
 import com.kss.AudioRecordUploader.utils.SharedPrefrenceObj;
+import com.kss.AudioRecordUploader.utils.Utility;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -25,6 +29,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
+
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
+import retrofit2.Response;
 
 public class CallReceiver extends BroadcastReceiver {
     private static final String TAG = "CallReceiver";
@@ -68,22 +77,12 @@ public class CallReceiver extends BroadcastReceiver {
 
     private void uploadFile() {
 
-        File[] datefolder = new File(Environment.getExternalStorageDirectory() + "/Call/").listFiles();
+        File[] datefolder = Constant.getCallRecordingDir().listFiles();
 
         if (datefolder != null) {
             Arrays.sort(datefolder, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
             if (datefolder.length != 0) {
-                for (int i = 0; i < datefolder.length; i++) {
-                    File audioFile = datefolder[i];
-                    if (audioFile.getName().contains("Call")) {
-                        uploadFile(
-                                SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR),
-                                SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL),
-                                audioFile,
-                                i < datefolder.length ? true : false
-                        );
-                    }
-                }
+                new uploadFile(datefolder).execute("");
             } else {
                 Toast toast = Toast.makeText(context, "NO FILE AVAILABLE", Toast.LENGTH_LONG);
                 toast.setGravity(Gravity.CENTER, 0, 0);
@@ -93,59 +92,9 @@ public class CallReceiver extends BroadcastReceiver {
                 );
             }
         }
-
-
-//        File[] datefolder = new File(Environment.getExternalStorageDirectory().getPath() + "/CallRecordingData/").listFiles();
-//
-//        System.out.print("A:" + Arrays.asList(datefolder.toString()));
-//
-//
-//        if (datefolder != null) {
-//            Arrays.sort(datefolder, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
-//            if (datefolder.length == 1) {
-//                for (int i = 0; i < datefolder.length - 1; i++) {
-//                    File audioFile = datefolder[i];
-//                    if (audioFile.getName().contains(".mp3")) {
-//                        uploadFile(
-//                                SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR),
-//                                SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL),
-//                                audioFile,
-//                                i < datefolder.length ? true : false
-//                        );
-//                    }
-//                }
-//            } else {
-//                Toast toast = Toast.makeText(context, "NO FILE AVAILABLE", Toast.LENGTH_LONG);
-//                toast.setGravity(Gravity.CENTER, 0, 0);
-//                toast.show();
-//                context.sendBroadcast(
-//                        new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
-//                );
-//            }
-//        }
-
-//        if (datefolder != null) {
-//            Arrays.sort(datefolder, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
-//            for (File dirFile : datefolder) {
-//                if (dirFile.isDirectory()) {
-//                    File[] files = Objects.requireNonNull(dirFile.listFiles());
-//                    for (int i = 0; i < files.length; i++) {
-//                        File audioFile = files[i];
-//                        if (audioFile.getName().contains("+")) {
-//                            uploadFile(
-//                                    SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR),
-//                                    SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL),
-//                                    audioFile,
-//                                    i < files.length ? true : false
-//                            );
-//                        }
-//                    }
-//                }
-//            }
-//        }
     }
 
-    private void uploadFile(String agentMobileNo, String agentEmail, final File audioFile, final boolean isLast) {
+    private void uploadFile(String agentMobileNo, String agentEmail, File audioFile, boolean isLast) {
 
         String clientMobileNo = getClientNumber(audioFile.getName());
         //String audioStringFile = getStringFile(audioFile);
@@ -161,13 +110,21 @@ public class CallReceiver extends BroadcastReceiver {
         Log.d(TAG, "uploadFile: durationInSecond: " + durationInSeconds);
 
 
-        WebServiceCalls.File.upload(context, agentMobileNo, agentEmail, clientMobileNo, String.valueOf(durationInSeconds), audioFile, new NetworkOperations() {
+        WebServiceCalls.File.upload(context, agentMobileNo, agentEmail, clientMobileNo, String.valueOf(durationInSeconds), audioFile, isLast, new NetworkOperations() {
 
             @Override
             public void onSuccess(Bundle msg) {
                 //TODO
-                audioFile.delete();
-                if (isLast) {
+
+                Data data = (Data) msg.getSerializable("data");
+
+                File uploadedAudioFile = new File(Constant.getCallRecordingDir(), data.getFileName().substring(data.getFileName().indexOf("/")));
+
+                Log.d(TAG, "onSuccess: uploadedAudioFile: exists:" + uploadedAudioFile.exists());
+
+                if (uploadedAudioFile.exists()) uploadedAudioFile.delete();
+
+                if (data.getIsLast().equalsIgnoreCase("1")) {
                     context.sendBroadcast(
                             new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
                     );
@@ -176,30 +133,109 @@ public class CallReceiver extends BroadcastReceiver {
 
             @Override
             public void onFailure(Bundle msg) {
-                //TODO
+                String message = msg.getString(Constant.MESSAGE);
+                System.err.println(message);
+                Toast toast = Toast.makeText(context, message, Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                toast.show();
 
             }
         });
+    }
+
+    class uploadFile extends AsyncTask<String, String, String> {
+
+        private File[] datefolder = null;
+        RFInterface rfInterface;
+
+        public uploadFile(File[] datefolder) {
+            this.datefolder = datefolder;
+            rfInterface = Utility.getRetrofitInterface(Constant.URL);
+        }
+
+        @Override
+        protected String doInBackground(String... strings) {
+
+            for (int i = 0; i < datefolder.length; i++) {
+                File audioFile = datefolder[i];
+                if (audioFile.getName().contains("Call")) {
+
+                    String agentMobileNumber = SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR);
+                    String agentEmailID = SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL);
+
+                    String clientMobileNo = getClientNumber(audioFile.getName());
+                    String audioFileExtension = audioFile.getName().substring(audioFile.getName().lastIndexOf('.') + 1);
+                    int durationInSeconds = getDurationInSecond(audioFile);
+
+                    RequestBody agentMobileNumberRequestBody = RequestBody.create(MediaType.parse("text"), agentMobileNumber);
+                    RequestBody agentEmailIDRequestBody = RequestBody.create(MediaType.parse("text"), agentEmailID);
+                    RequestBody clientMobileNumberRequestBody = RequestBody.create(MediaType.parse("text"), clientMobileNo);
+                    RequestBody totalDurationRequestBody = RequestBody.create(MediaType.parse("text"), "" + durationInSeconds);
+                    RequestBody audioFileRequestBody = RequestBody.create(MediaType.parse("audio"), audioFile);
+
+                    RequestBody isLastRequestBody = null;
+                    if (i == datefolder.length - 1) {
+                        isLastRequestBody = RequestBody.create(MediaType.parse("text"), "1");
+                    } else {
+                        isLastRequestBody = RequestBody.create(MediaType.parse("text"), "0");
+                    }
+
+                    MultipartBody.Part audioMultipartBodyPart = MultipartBody.Part.createFormData("audio", audioFile.getName(), audioFileRequestBody);
+
+                    try {
+                        Response<RmUploadFileResponse> executeUploadFileResponse = rfInterface.uploadFile(
+                                agentMobileNumberRequestBody, agentEmailIDRequestBody, clientMobileNumberRequestBody,
+                                totalDurationRequestBody, audioMultipartBodyPart, isLastRequestBody
+                        ).execute();
+
+                        if (executeUploadFileResponse.isSuccessful()) {
+                            if (executeUploadFileResponse.body().getSuccess()) {
+
+                                Data data = executeUploadFileResponse.body().getData();
+
+                                File uploadedAudioFile = new File(Constant.getCallRecordingDir(), data.getFileName().substring(data.getFileName().indexOf("/")));
+
+                                Log.d(TAG, "onSuccess: uploadedAudioFile: exists:" + uploadedAudioFile.exists());
+
+                                //if (uploadedAudioFile.exists()) uploadedAudioFile.delete();
+
+                                if (data.getIsLast().equalsIgnoreCase("1")) {
+                                    context.sendBroadcast(
+                                            new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
+                                    );
+                                }
+
+                            } else {
+                                publishProgress((i + 1) + " file found error while uploading");
+                            }
+                        } else {
+                            publishProgress((i + 1) + " file found http connection fails while uploading");
+                        }
+
+                    } catch (Exception e) {
+                        System.err.println(e);
+                        publishProgress(e.getLocalizedMessage());
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(String... values) {
+            super.onProgressUpdate(values);
+            //TODO
+            Toast toast = Toast.makeText(context, values[0], Toast.LENGTH_LONG);
+            toast.setGravity(Gravity.CENTER, 0, 0);
+            toast.show();
+        }
     }
 
     private String getClientNumber(String fileName) {
         String number = fileName.substring(fileName.lastIndexOf(" ") + 1, fileName.indexOf("_"));
         return number;
     }
-
-//    private String getClientNumber(String fileName) {
-//
-//        String number = fileName.substring(0, fileName.indexOf("_"));
-//
-//        if (number.startsWith("+91")) {
-//            return number;
-//        } else if (number.length() == 10) {
-//            return "+91" + number;
-//        } else {
-//            number = number.substring(1);
-//            return "+91" + number;
-//        }
-//    }
 
     public String getStringFile(File file) {
         String base64StringFile = null;
