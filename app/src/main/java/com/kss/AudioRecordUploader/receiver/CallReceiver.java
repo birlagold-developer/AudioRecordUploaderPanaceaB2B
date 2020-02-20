@@ -3,8 +3,6 @@ package com.kss.AudioRecordUploader.receiver;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.media.MediaMetadataRetriever;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.telephony.TelephonyManager;
@@ -12,7 +10,9 @@ import android.util.Log;
 import android.view.Gravity;
 import android.widget.Toast;
 
+import com.kss.AudioRecordUploader.database.DataBaseAdapter;
 import com.kss.AudioRecordUploader.model.Data;
+import com.kss.AudioRecordUploader.model.MissedCallLog;
 import com.kss.AudioRecordUploader.network.retrofit.RFInterface;
 import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmUploadFileResponse;
 import com.kss.AudioRecordUploader.utils.Constant;
@@ -21,6 +21,7 @@ import com.kss.AudioRecordUploader.utils.SharedPrefrenceObj;
 import com.kss.AudioRecordUploader.utils.Utility;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -34,39 +35,78 @@ public class CallReceiver extends BroadcastReceiver {
 
     private Context context;
 
+    static boolean RINGING = false;
+
+    private String callerPhoneNumber;
+
     @Override
     public void onReceive(Context context, Intent intent) {
         this.context = context;
 
-        if (Networkstate.haveNetworkConnection(context)) {
-            if (Objects.requireNonNull(intent.getAction()).equalsIgnoreCase("android.intent.action.PHONE_STATE")) {
-                Bundle extras = intent.getExtras();
-                if (extras != null) {
-
-                    String state = extras.getString(TelephonyManager.EXTRA_STATE);
-//            Log.d(TAG, "onReceive: TelephonyManager.EXTRA_STATE: " + state);
-//            Log.d(TAG, "onReceive: TelephonyManager.CALL_STATE_IDLE: " + TelephonyManager.CALL_STATE_IDLE);
-//            Log.d(TAG, "onReceive: TelephonyManager.CALL_STATE_RINGING: " + TelephonyManager.CALL_STATE_RINGING);
-//            Log.d(TAG, "onReceive: TelephonyManager.CALL_STATE_OFFHOOK: " + TelephonyManager.CALL_STATE_OFFHOOK);
-//            System.out.print("<=======================>");
-
-                    if (state != null && state.equalsIgnoreCase(TelephonyManager.EXTRA_STATE_IDLE)) {
-                        checkFolderAndUploadFile();
-                    }
+        if (Objects.requireNonNull(intent.getAction()).equalsIgnoreCase("android.intent.action.PHONE_STATE")) {
+            Bundle extras = intent.getExtras();
+            String state = extras.getString(TelephonyManager.EXTRA_STATE);
+            if (Networkstate.haveNetworkConnection(context)) {
+                if (state != null && state.equalsIgnoreCase(TelephonyManager.EXTRA_STATE_IDLE)) {
+                    checkFolderAndUploadFile();
                 }
             } else {
-                checkFolderAndUploadFile();
-            }
-        } else {
-            Toast toast = Toast.makeText(context, "NO INTERNET CONNECTION", Toast.LENGTH_LONG);
-            toast.setGravity(Gravity.CENTER, 0, 0);
-            toast.show();
+                Toast toast = Toast.makeText(context, "NO INTERNET CONNECTION", Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                toast.show();
 
-            context.sendBroadcast(
-                    new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
-            );
+                context.sendBroadcast(
+                        new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
+                );
+            }
+            //TODO
+//            Bundle bundle = intent.getExtras();
+//            String phoneNumber = bundle.getString("incoming_number");
+//            TelephonyManager telephony = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+//            MissedCallPhoneStateListener missedCallPhoneStateListener = new MissedCallPhoneStateListener(context, phoneNumber);
+//            telephony.listen(missedCallPhoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+
+            if (state == null)
+                return;
+
+            callerPhoneNumber = extras.getString("incoming_number");
+
+            // If phone state "Rininging"
+            if (state.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
+                RINGING = true;
+            }
+
+            // If incoming call is received
+            if (state.equals(TelephonyManager.EXTRA_STATE_OFFHOOK)) {
+                RINGING = false;
+            }
+
+
+            // If phone is Idle
+            if (state.equals(TelephonyManager.EXTRA_STATE_IDLE)) {
+                if (RINGING) {
+                    //Toast.makeText(context, "It was A MISSED CALL from : " + callerPhoneNumber, Toast.LENGTH_LONG).show();
+                    DataBaseAdapter dataBaseAdapter = new DataBaseAdapter(context).open();
+                    dataBaseAdapter.insertMissedCallLog(callerPhoneNumber);
+                    dataBaseAdapter.close();
+                }
+            }
+
+        } else if (Objects.requireNonNull(intent.getAction()).equalsIgnoreCase("MANUAL_FILE_UPLOAD")) {
+            if (Networkstate.haveNetworkConnection(context)) {
+                checkFolderAndUploadFile();
+            } else {
+                Toast toast = Toast.makeText(context, "NO INTERNET CONNECTION", Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                toast.show();
+
+                context.sendBroadcast(
+                        new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
+                );
+            }
         }
 
+        new UploadMissedCall(context).execute("");
     }
 
     private void checkFolderAndUploadFile() {
@@ -91,7 +131,7 @@ public class CallReceiver extends BroadcastReceiver {
     class uploadFile extends AsyncTask<String, String, String> {
 
         private File[] datefolder = null;
-        RFInterface rfInterface;
+        private RFInterface rfInterface;
 
         public uploadFile(File[] datefolder) {
             this.datefolder = datefolder;
@@ -108,9 +148,9 @@ public class CallReceiver extends BroadcastReceiver {
                     String agentMobileNumber = SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR);
                     String agentEmailID = SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL);
 
-                    String clientMobileNo = getClientNumber(audioFile.getName());
+                    String clientMobileNo = Constant.getClientNumber(audioFile.getName());
                     String audioFileExtension = audioFile.getName().substring(audioFile.getName().lastIndexOf('.') + 1);
-                    int durationInSeconds = getDurationInSecond(audioFile);
+                    int durationInSeconds = Constant.getDurationInSecond(context, audioFile);
 
                     RequestBody agentMobileNumberRequestBody = RequestBody.create(MediaType.parse("text"), agentMobileNumber);
                     RequestBody agentEmailIDRequestBody = RequestBody.create(MediaType.parse("text"), agentEmailID);
@@ -182,25 +222,31 @@ public class CallReceiver extends BroadcastReceiver {
         }
     }
 
-    private String getClientNumber(String fileName) {
-        String number = fileName.substring(fileName.lastIndexOf(" ") + 1, fileName.indexOf("_"));
-        if (number.startsWith("+91")) {
-            return number;
-        } else if (number.length() > 10) {
-            return "+91" + number.substring(number.length() - 10);
-        } else {
-            return "+91" + number;
-        }
-    }
+    class UploadMissedCall extends AsyncTask<String, String, String> {
 
-    private int getDurationInSecond(File audioFile) {
-        Uri uri = Uri.parse(audioFile.getAbsolutePath());
-        MediaMetadataRetriever mmr = new MediaMetadataRetriever();
-        mmr.setDataSource(context, uri);
-        String durationStr = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-        mmr.release();
-        int millSecond = Integer.parseInt(durationStr == null ? "0" : durationStr);
-        return millSecond / 1000;
+        private Context context;
+        private RFInterface rfInterface;
+
+        public UploadMissedCall(Context context) {
+            this.context = context;
+            rfInterface = Utility.getRetrofitInterface(Constant.URL);
+        }
+
+        @Override
+        protected String doInBackground(String... strings) {
+
+            DataBaseAdapter dataBaseAdapter = new DataBaseAdapter(context).open();
+
+            ArrayList<MissedCallLog> allMissedCallLog = dataBaseAdapter.getAllMissedCallLog();
+
+            for (MissedCallLog missedCallLog : allMissedCallLog) {
+                //rfInterface.
+            }
+
+            dataBaseAdapter.close();
+
+            return null;
+        }
     }
 
 }
