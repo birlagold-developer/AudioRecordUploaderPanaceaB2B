@@ -8,14 +8,11 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.telephony.TelephonyManager;
-import android.util.Base64;
 import android.util.Log;
 import android.view.Gravity;
 import android.widget.Toast;
 
 import com.kss.AudioRecordUploader.model.Data;
-import com.kss.AudioRecordUploader.network.NetworkOperations;
-import com.kss.AudioRecordUploader.network.WebServiceCalls;
 import com.kss.AudioRecordUploader.network.retrofit.RFInterface;
 import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmUploadFileResponse;
 import com.kss.AudioRecordUploader.utils.Constant;
@@ -23,10 +20,7 @@ import com.kss.AudioRecordUploader.utils.Networkstate;
 import com.kss.AudioRecordUploader.utils.SharedPrefrenceObj;
 import com.kss.AudioRecordUploader.utils.Utility;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -57,11 +51,11 @@ public class CallReceiver extends BroadcastReceiver {
 //            System.out.print("<=======================>");
 
                     if (state != null && state.equalsIgnoreCase(TelephonyManager.EXTRA_STATE_IDLE)) {
-                        uploadFile();
+                        checkFolderAndUploadFile();
                     }
                 }
             } else {
-                uploadFile();
+                checkFolderAndUploadFile();
             }
         } else {
             Toast toast = Toast.makeText(context, "NO INTERNET CONNECTION", Toast.LENGTH_LONG);
@@ -75,7 +69,7 @@ public class CallReceiver extends BroadcastReceiver {
 
     }
 
-    private void uploadFile() {
+    private void checkFolderAndUploadFile() {
 
         File[] datefolder = Constant.getCallRecordingDir().listFiles();
 
@@ -92,55 +86,6 @@ public class CallReceiver extends BroadcastReceiver {
                 );
             }
         }
-    }
-
-    private void uploadFile(String agentMobileNo, String agentEmail, File audioFile, boolean isLast) {
-
-        String clientMobileNo = getClientNumber(audioFile.getName());
-        //String audioStringFile = getStringFile(audioFile);
-        String audioFileExtension = audioFile.getName().substring(audioFile.getName().lastIndexOf('.') + 1);
-        int durationInSeconds = getDurationInSecond(audioFile);
-
-        Log.i(TAG, "uploadFile: audioFile: " + audioFile.getAbsolutePath());
-        Log.d(TAG, "uploadFile: agentMobile: " + agentMobileNo);
-        Log.d(TAG, "uploadFile: agentEmail: " + agentEmail);
-        Log.d(TAG, "uploadFile: clientMobileNo: " + clientMobileNo);
-        //Log.d(TAG, "uploadFile: audioStringFile: " + audioStringFile);
-        Log.d(TAG, "uploadFile: audioFileExtension: " + audioFileExtension);
-        Log.d(TAG, "uploadFile: durationInSecond: " + durationInSeconds);
-
-
-        WebServiceCalls.File.upload(context, agentMobileNo, agentEmail, clientMobileNo, String.valueOf(durationInSeconds), audioFile, isLast, new NetworkOperations() {
-
-            @Override
-            public void onSuccess(Bundle msg) {
-                //TODO
-
-                Data data = (Data) msg.getSerializable("data");
-
-                File uploadedAudioFile = new File(Constant.getCallRecordingDir(), data.getFileName().substring(data.getFileName().indexOf("/")));
-
-                Log.d(TAG, "onSuccess: uploadedAudioFile: exists:" + uploadedAudioFile.exists());
-
-                if (uploadedAudioFile.exists()) uploadedAudioFile.delete();
-
-                if (data.getIsLast().equalsIgnoreCase("1")) {
-                    context.sendBroadcast(
-                            new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
-                    );
-                }
-            }
-
-            @Override
-            public void onFailure(Bundle msg) {
-                String message = msg.getString(Constant.MESSAGE);
-                System.err.println(message);
-                Toast toast = Toast.makeText(context, message, Toast.LENGTH_LONG);
-                toast.setGravity(Gravity.CENTER, 0, 0);
-                toast.show();
-
-            }
-        });
     }
 
     class uploadFile extends AsyncTask<String, String, String> {
@@ -182,44 +127,49 @@ public class CallReceiver extends BroadcastReceiver {
 
                     MultipartBody.Part audioMultipartBodyPart = MultipartBody.Part.createFormData("audio", audioFile.getName(), audioFileRequestBody);
 
-                    try {
-                        Response<RmUploadFileResponse> executeUploadFileResponse = rfInterface.uploadFile(
-                                agentMobileNumberRequestBody, agentEmailIDRequestBody, clientMobileNumberRequestBody,
-                                totalDurationRequestBody, audioMultipartBodyPart, isLastRequestBody
-                        ).execute();
-
-                        if (executeUploadFileResponse.isSuccessful()) {
-                            if (executeUploadFileResponse.body().getSuccess()) {
-
-                                Data data = executeUploadFileResponse.body().getData();
-
-                                File uploadedAudioFile = new File(Constant.getCallRecordingDir(), data.getFileName().substring(data.getFileName().indexOf("/")));
-
-                                Log.d(TAG, "onSuccess: uploadedAudioFile: exists:" + uploadedAudioFile.exists());
-
-                                //if (uploadedAudioFile.exists()) uploadedAudioFile.delete();
-
-                                if (data.getIsLast().equalsIgnoreCase("1")) {
-                                    context.sendBroadcast(
-                                            new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
-                                    );
-                                }
-
-                            } else {
-                                publishProgress((i + 1) + " file found error while uploading");
-                            }
-                        } else {
-                            publishProgress((i + 1) + " file found http connection fails while uploading");
-                        }
-
-                    } catch (Exception e) {
-                        System.err.println(e);
-                        publishProgress(e.getLocalizedMessage());
-                    }
+                    upload(agentMobileNumberRequestBody, agentEmailIDRequestBody, clientMobileNumberRequestBody, totalDurationRequestBody, audioMultipartBodyPart, isLastRequestBody, i);
                 }
             }
 
             return null;
+        }
+
+        private void upload(RequestBody agentMobileNumberRequestBody, RequestBody agentEmailIDRequestBody, RequestBody clientMobileNumberRequestBody,
+                            RequestBody totalDurationRequestBody, MultipartBody.Part audioMultipartBodyPart, RequestBody isLastRequestBody, int fileCounter) {
+            try {
+                Response<RmUploadFileResponse> executeUploadFileResponse = rfInterface.uploadFile(
+                        agentMobileNumberRequestBody, agentEmailIDRequestBody, clientMobileNumberRequestBody,
+                        totalDurationRequestBody, audioMultipartBodyPart, isLastRequestBody
+                ).execute();
+
+                if (executeUploadFileResponse.isSuccessful()) {
+                    if (executeUploadFileResponse.body().getSuccess()) {
+
+                        Data data = executeUploadFileResponse.body().getData();
+
+                        File uploadedAudioFile = new File(Constant.getCallRecordingDir(), data.getFileName().substring(data.getFileName().indexOf("/")));
+
+                        Log.d(TAG, "onSuccess: uploadedAudioFile: exists:" + uploadedAudioFile.exists());
+
+                        if (uploadedAudioFile.exists()) uploadedAudioFile.delete();
+
+                        if (data.getIsLast().equalsIgnoreCase("1")) {
+                            context.sendBroadcast(
+                                    new Intent().setAction("MANUAL_FILE_UPLOAD_COMPLETE")
+                            );
+                        }
+
+                    } else {
+                        publishProgress((fileCounter + 1) + " file found error while uploading");
+                    }
+                } else {
+                    publishProgress((fileCounter + 1) + " file found http connection fails while uploading");
+                }
+
+            } catch (Exception e) {
+                System.err.println(e);
+                publishProgress(e.getLocalizedMessage());
+            }
         }
 
         @Override
@@ -234,23 +184,13 @@ public class CallReceiver extends BroadcastReceiver {
 
     private String getClientNumber(String fileName) {
         String number = fileName.substring(fileName.lastIndexOf(" ") + 1, fileName.indexOf("_"));
-        return number;
-    }
-
-    public String getStringFile(File file) {
-        String base64StringFile = null;
-        int size = (int) file.length();
-        byte[] bytes = new byte[size];
-        try {
-            BufferedInputStream buf = new BufferedInputStream(new FileInputStream(file));
-            buf.read(bytes, 0, bytes.length);
-            buf.close();
-            base64StringFile = Base64.encodeToString(bytes, Base64.DEFAULT);
-            return base64StringFile;
-        } catch (IOException e) {
-            Log.e(TAG, "getStringFile: FileNotFoundException: ", e);
+        if (number.startsWith("+91")) {
+            return number;
+        } else if (number.length() > 10) {
+            return "+91" + number.substring(number.length() - 10);
+        } else {
+            return "+91" + number;
         }
-        return null;
     }
 
     private int getDurationInSecond(File audioFile) {
