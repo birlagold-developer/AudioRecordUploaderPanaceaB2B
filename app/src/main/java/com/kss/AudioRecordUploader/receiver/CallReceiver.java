@@ -14,6 +14,7 @@ import com.kss.AudioRecordUploader.database.DataBaseAdapter;
 import com.kss.AudioRecordUploader.model.Data;
 import com.kss.AudioRecordUploader.model.MissedCallLog;
 import com.kss.AudioRecordUploader.network.retrofit.RFInterface;
+import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmResultResponse;
 import com.kss.AudioRecordUploader.network.retrofit.responsemodels.RmUploadFileResponse;
 import com.kss.AudioRecordUploader.utils.Constant;
 import com.kss.AudioRecordUploader.utils.Networkstate;
@@ -23,6 +24,7 @@ import com.kss.AudioRecordUploader.utils.Utility;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Objects;
 
 import okhttp3.MediaType;
@@ -66,10 +68,15 @@ public class CallReceiver extends BroadcastReceiver {
 //            MissedCallPhoneStateListener missedCallPhoneStateListener = new MissedCallPhoneStateListener(context, phoneNumber);
 //            telephony.listen(missedCallPhoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
 
-            if (state == null)
+            if (state == null) {
                 return;
+            }
 
-            callerPhoneNumber = extras.getString("incoming_number");
+            callerPhoneNumber = extras.getString(TelephonyManager.EXTRA_INCOMING_NUMBER);
+
+            if (callerPhoneNumber == null) {
+                return;
+            }
 
             // If phone state "Rininging"
             if (state.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
@@ -81,13 +88,12 @@ public class CallReceiver extends BroadcastReceiver {
                 RINGING = false;
             }
 
-
             // If phone is Idle
             if (state.equals(TelephonyManager.EXTRA_STATE_IDLE)) {
                 if (RINGING) {
                     //Toast.makeText(context, "It was A MISSED CALL from : " + callerPhoneNumber, Toast.LENGTH_LONG).show();
                     DataBaseAdapter dataBaseAdapter = new DataBaseAdapter(context).open();
-                    dataBaseAdapter.insertMissedCallLog(callerPhoneNumber);
+                    dataBaseAdapter.insertMissedCallLog(callerPhoneNumber, Constant.DATE_FORMAT.format(new Date()));
                     dataBaseAdapter.close();
                 }
             }
@@ -106,7 +112,9 @@ public class CallReceiver extends BroadcastReceiver {
             }
         }
 
-        new UploadMissedCall(context).execute("");
+        if (Networkstate.haveNetworkConnection(context)) {
+            new UploadMissedCall(context).execute("");
+        }
     }
 
     private void checkFolderAndUploadFile() {
@@ -148,7 +156,7 @@ public class CallReceiver extends BroadcastReceiver {
                     String agentMobileNumber = SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR);
                     String agentEmailID = SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL);
 
-                    String clientMobileNo = Constant.getClientNumber(audioFile.getName());
+                    String clientMobileNo = Constant.getClientNumber(context, audioFile.getName());
                     String audioFileExtension = audioFile.getName().substring(audioFile.getName().lastIndexOf('.') + 1);
                     int durationInSeconds = Constant.getDurationInSecond(context, audioFile);
 
@@ -235,12 +243,31 @@ public class CallReceiver extends BroadcastReceiver {
         @Override
         protected String doInBackground(String... strings) {
 
+            String agentMobileNumber = SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_NUMBBR);
+            String agentEmailID = SharedPrefrenceObj.getSharedValue(context, Constant.AGENT_EMAIL);
+
             DataBaseAdapter dataBaseAdapter = new DataBaseAdapter(context).open();
 
             ArrayList<MissedCallLog> allMissedCallLog = dataBaseAdapter.getAllMissedCallLog();
 
-            for (MissedCallLog missedCallLog : allMissedCallLog) {
-                //rfInterface.
+            if (allMissedCallLog != null) {
+                for (MissedCallLog missedCallLog : allMissedCallLog) {
+                    try {
+                        Response<RmResultResponse> response = rfInterface.uploadMissedCallLog(
+                                missedCallLog.getMobileNumber(), agentMobileNumber,
+                                agentEmailID, missedCallLog.getDateTime()
+                        ).execute();
+
+                        if (response.isSuccessful()) {
+                            if (response.body().getSuccess()) {
+                                dataBaseAdapter.deleteMissedCallLog(String.valueOf(missedCallLog.getId()));
+                            }
+                        }
+
+                    } catch (Exception e) {
+                        System.err.println(e);
+                    }
+                }
             }
 
             dataBaseAdapter.close();

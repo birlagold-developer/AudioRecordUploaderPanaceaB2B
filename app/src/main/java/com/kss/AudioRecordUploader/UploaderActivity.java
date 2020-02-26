@@ -42,7 +42,7 @@ public class UploaderActivity extends AppCompatActivity implements View.OnClickL
         registerReceiver(broadcastReceiver, new IntentFilter("MANUAL_FILE_UPLOAD_COMPLETE"));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            ActivityCompat.requestPermissions(UploaderActivity.this, new String[]{Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1000);
+            ActivityCompat.requestPermissions(UploaderActivity.this, new String[]{Manifest.permission.READ_CONTACTS, Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1000);
         }
     }
 
@@ -55,6 +55,7 @@ public class UploaderActivity extends AppCompatActivity implements View.OnClickL
                                 .setAction("MANUAL_FILE_UPLOAD")
                 );
                 binding.ProgressBar.setVisibility(View.VISIBLE);
+                binding.btnUploader.setEnabled(false);
                 break;
         }
     }
@@ -63,6 +64,7 @@ public class UploaderActivity extends AppCompatActivity implements View.OnClickL
         @Override
         public void onReceive(Context context, Intent intent) {
             binding.ProgressBar.setVisibility(View.GONE);
+            binding.btnUploader.setEnabled(true);
             Toast toast = Toast.makeText(UploaderActivity.this, R.string.upload_complete_message, Toast.LENGTH_LONG);
             toast.setGravity(Gravity.CENTER, 0, 0);
             toast.show();

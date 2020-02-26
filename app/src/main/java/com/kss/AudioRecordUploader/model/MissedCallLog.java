@@ -3,11 +3,12 @@ package com.kss.AudioRecordUploader.model;
 public class MissedCallLog {
 
     private int id;
-    private String mobileNumber;
+    private String mobileNumber, dateTime;
 
-    public MissedCallLog(int id, String mobileNumber) {
+    public MissedCallLog(int id, String mobileNumber,String dateTime) {
         this.id = id;
         this.mobileNumber = mobileNumber;
+        this.dateTime = dateTime;
     }
 
     public int getId() {
@@ -24,5 +25,13 @@ public class MissedCallLog {
 
     public void setMobileNumber(String mobileNumber) {
         this.mobileNumber = mobileNumber;
+    }
+
+    public String getDateTime() {
+        return dateTime;
+    }
+
+    public void setDateTime(String dateTime) {
+        this.dateTime = dateTime;
     }
 }

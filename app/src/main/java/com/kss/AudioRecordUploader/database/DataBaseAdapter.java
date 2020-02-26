@@ -15,9 +15,9 @@ public class DataBaseAdapter {
     public static final int DATABASE_VERSION = 1;
     // SQL Statement to create a new database.
 
-    // Table Name "Login"
+    // Table Name "MISSED_CALL_LOG"
     static final String DATABASE_CREATE_MISSED_CALL_LOG = "create table IF NOT EXISTS " + "MISSED_CALL_LOG"
-            + "(ID integer primary key autoincrement, MobileNumber  text); ";
+            + "(ID integer primary key autoincrement, MobileNumber  text, MissedDateTime text); ";
 
     private Context context;
     private SQLiteDatabase db;
@@ -37,9 +37,10 @@ public class DataBaseAdapter {
         db.close();
     }
 
-    public Long insertMissedCallLog(String mobileNumber) {
+    public Long insertMissedCallLog(String mobileNumber, String MissedDateTime) {
         ContentValues values = new ContentValues();
         values.put("MobileNumber", mobileNumber);
+        values.put("MissedDateTime", MissedDateTime);
         return db.insert("MISSED_CALL_LOG", null, values);
     }
 
@@ -50,8 +51,9 @@ public class DataBaseAdapter {
             do {
                 int id = cursor.getInt(cursor.getColumnIndex("ID"));
                 String mobileNumber = cursor.getString(cursor.getColumnIndex("MobileNumber"));
+                String missedDateTime = cursor.getString(cursor.getColumnIndex("MissedDateTime"));
 
-                missedCallLogs.add(new MissedCallLog(id, mobileNumber));
+                missedCallLogs.add(new MissedCallLog(id, mobileNumber, missedDateTime));
             } while (cursor.moveToNext());
         }
 
